@@ -135,16 +135,13 @@ handle_spikes <- function(counts, samples, taxonomy, calibrate, remove_spikes) {
     # not correct these read counts (what else can we do?). Presumably, spike-ins
     # were not added to these samples by mistake.
     if (calibrate && length(spikein_clusters) > 0) {
-        cat("calibrating, this may take a while...\n")
         spike_counts <- colSums(counts[counts$cluster %in% spikein_clusters,..idx])
         correction <- spike_counts / mean(spike_counts[spike_counts!=0])
-        m <- as.matrix(counts[,2:ncol(counts)])
-        for (i in 1:length(idx)) {
-            if (spike_counts[i]!=0)
-                m[,idx[i]-1] <- ceiling(m[,idx[i]-1] / correction[i])
+        correction[spike_counts==0] <- 1.0
+        for (i in   1:length(idx)) {
+            cat("Processing col ", idx, " (", round(idx/ncol(counts)), "%)\n",sep="")
+            counts[,idx] <- ceiling(counts[,..idx] / correction[i])
         }
-
-        counts <- cbind(counts[,1],as.data.table(m))
     }
 
     # Remove the spike-ins
