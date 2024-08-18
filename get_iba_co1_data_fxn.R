@@ -106,8 +106,12 @@ get_iba_co1_data <- function(data_path,
     tot <- rowSums(counts[,2:ncol(counts)])
     counts <- counts[tot!=0,]
 
-    # Add in taxonomy data and convert to data.frame
-    data.frame(merge(counts, taxonomy, by="cluster"))
+    # Remove clusters with no data
+    tot <- colSums(counts[,2:ncol(counts)])
+    counts <- counts[,c(TRUE,tot!=0)]
+
+    # Add in taxonomy data 
+    merge(counts, taxonomy, by="cluster")
 }
 
 
