@@ -1,6 +1,10 @@
 # Code relies on data.table
 library(data.table)
 
+# Read in functions for identifying and removing spikes
+source("spikes_control_fxns.R")
+
+
 # Function for getting the IBA data for CO1.
 #
 # Parameters
@@ -11,16 +15,15 @@ library(data.table)
 #  -     calibrate: whether to calibrate the read counts using biological spike-in data (only possible for lysates and homogenates)
 #  -                NB! when calibrate is requested, spike-ins will be removed
 #  - remove_spikes: whether to remove reads from biological spike-ins (only relevant for lysates and homogenates)
-
 get_iba_co1_data <- function(data_path,
                              metadata_path=data_path,
-                             country=c("mg","se"),
+                             country=c("MG","SE"),
                              dataset=c("homogenate|lysate|ethanol|soil|litter"),
                              calibrate=FALSE,
                              remove_spikes=TRUE) {
     
     # Refuse to lump datasets across countries
-    if (country!="mg" && country !="se") {
+    if (country!="MG" && country !="SE") {
         cat ("ERROR: 'country' must be one of 'mg' or 'se'\n")
         return (NA)
     }
@@ -33,7 +36,7 @@ get_iba_co1_data <- function(data_path,
     # Initialize index into columns we want to keep
     index <- numeric()
 
-    if (country=="se") {
+    if (country=="SE") {
 
         # Get metadata file and remove non-samples and sequencing failures
         meta <- fread(paste0(metadata_path,"CO1_sequencing_metadata_SE.tsv"))
@@ -72,7 +75,7 @@ get_iba_co1_data <- function(data_path,
             index <- c(index, match(litter_samples,colnames(counts)))
         }
     }
-    if (country=="mg") {
+    if (country=="MG") {
 
         # Get metadata file and remove non-samples and sequencing failures
         # Note misspelling of sequencing status value in MG metadata file
@@ -111,13 +114,14 @@ get_iba_co1_data <- function(data_path,
     counts <- counts[,c(TRUE,tot!=0)]
 
     # Add in taxonomy data 
-    merge(counts, taxonomy, by="cluster")
+    dt <- merge(taxonomy, counts, by="cluster")
+
+    # Make absolutely sure we remove Zoarces gillii
+    dt[dt$Species!="Zoarces gillii",]
 }
 
 
 # Help function for calibration and removal of spike-ins
-# We identify spike-in clusters as those that occur in
-# more than 80% of samples and belong to Insecta
 handle_spikes <- function(counts, samples, taxonomy, calibrate, remove_spikes) {
 
     # get column indices in the counts data table
@@ -126,16 +130,10 @@ handle_spikes <- function(counts, samples, taxonomy, calibrate, remove_spikes) {
     idx <- idx[!is.na(idx)]
 
     # identify spikeins
-    spikein_candidates <- counts$cluster[rowMeans(counts[,..idx]>0)>0.8]
-    spikein_clusters <- spikein_candidates[taxonomy$Class[match(spikein_candidates,taxonomy$cluster)]=="Insecta"]
-    cat("found", length(spikein_clusters), "spikein clusters:\n")
-    print(spikein_clusters)
+    spikein_clusters <- identify_spikes(counts, samples, taxonomy)
 
     # calibrate
-    # This is slow on data.table objects so it makes sense to convert to a matrix
-    # and compute on the matrix; note that index differs by 1 because cluster column
-    # is not retained in the matrix.
-    # Also note that there are occasional samples without spike-ins; we simply do
+    # Note that there are occasional samples without spike-ins; we simply do
     # not correct these read counts (what else can we do?). Presumably, spike-ins
     # were not added to these samples by mistake.
     if (calibrate && length(spikein_clusters) > 0) {
@@ -143,7 +141,8 @@ handle_spikes <- function(counts, samples, taxonomy, calibrate, remove_spikes) {
         correction <- spike_counts / mean(spike_counts[spike_counts!=0])
         correction[spike_counts==0] <- 1.0
         for (i in   1:length(idx)) {
-            cat("Processing col ", idx, " (", round(idx/ncol(counts)), "%)\n",sep="")
+            if (i%%100==0)
+                cat("Processing col ", idx, " (", round(100.0*idx/ncol(counts)), "%)\n",sep="")
             counts[,idx] <- ceiling(counts[,..idx] / correction[i])
         }
     }
