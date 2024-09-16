@@ -120,10 +120,18 @@ remove_control_clusters <- function(filtered_counts, all_cluster_counts, taxonom
 # Function for identifying spikeins
 identify_spikes <- function(counts, spikein_samples, taxonomy, cutoff=0.8) {
 
+    # Get a rep asv taxonomy in case a complete cluster taxonomy is provided
+    if ("representative" %in% colnames(taxonomy))
+        taxonomy <- taxonomy[taxonomy$representative==1,]
+
     # Get counts for the samples containing spikeins
+    # Account for counts being either data.frame or data.table
     idx <- which(colnames(counts) %in% spikein_samples)
     idx <- c(1,idx)
-    counts <- counts[,..idx]
+    if (class(counts)[1]=="data.table")
+        counts <- counts[,..idx]
+     else
+        counts <- counts[,idx]
 
     # Identify spikeins
     prop_samples <- rowMeans(counts[,2:ncol(counts)]>0)
