@@ -48,17 +48,21 @@ identify_control_clusters <- function(counts, taxonomy, samples, controls, cutof
     idx <- c(1,idx) # keep cluster name
     control_counts <- counts[,..idx]
 
+    # identify clusters that have at least one read in a control
     include_rows <- rowSums(control_counts[, 2:ncol(control_counts)])>0
+    # get counts of the control clusters in the controls
     control_counts <- control_counts[include_rows,]
+    # get counts of the control clusters in the samples
     sample_counts <- sample_counts[include_rows,]
 
     # Output some diagnostics
     tot_clusters <- nrow(control_counts)
+    # prop_controls is the proportion of control samples in which each cluster occurs
     prop_controls <- rowMeans(control_counts[,2:ncol(control_counts)]>0)
 
     cat("There are", tot_clusters, "clusters in the control samples\n")
     cat("Of these,", sum(prop_controls>cutoff), "occur in more than", cutoff, "of samples\n")
-
+    # identify clusters that occur in more than cutoff proportion of control samples
     remove_clusters <- control_counts$cluster[prop_controls>cutoff]
     
     res <- mean_max(control_counts, prop_controls>cutoff)
@@ -98,7 +102,7 @@ identify_control_clusters <- function(counts, taxonomy, samples, controls, cutof
     cat("max:\n")
     print(summary(res$keep_max))
 
-    remove_clusters
+    list(remove_clusters=remove_clusters, remove_tax=remove_tax)
 }
 
 
@@ -111,9 +115,12 @@ identify_control_clusters <- function(counts, taxonomy, samples, controls, cutof
 #   cutoff:             threshold for removing control clusters
 remove_control_clusters <- function(filtered_counts, all_cluster_counts, taxonomy, samples, controls, cutoff=0.05) {
 
-    remove_clusters <- identify_control_clusters(all_cluster_counts, taxonomy, samples, controls, cutoff)
+    res <- identify_control_clusters(all_cluster_counts, taxonomy, samples, controls, cutoff)
+    remove_clusters <- res$remove_clusters
+    remove_tax <- res$remove_tax
 
-    filtered_counts[!filtered_counts$cluster %in% remove_clusters,]
+    res <- list(counts=filtered_counts[!filtered_counts$cluster %in% remove_clusters,], remove_tax=remove_tax)
+    res
 }
 
 
@@ -143,15 +150,19 @@ identify_spikes <- function(counts, spikein_samples, taxonomy, cutoff=0.8) {
     print(spike_tax)
 
     # Return clusters
-    spikein_clusters
+    res <- list(spikein_clusters=spikein_clusters, spike_tax=spike_tax)
+    res
 }
 
 
 # Function for removing spikes
 remove_spikes <- function(counts, spikein_samples, taxonomy, cutoff=0.8) {
 
-    spikein_clusters <- identify_spikes(counts, spikein_samples, taxonomy)
+    res <- identify_spikes(counts, spikein_samples, taxonomy, cutoff)
+    spikein_clusters <- res$spikein_clusters
+    spike_tax <- res$spike_tax
 
-    counts[!(counts$cluster %in% spikein_clusters),]
+    res <- list(counts=counts[!(counts$cluster %in% spikein_clusters),], spike_tax=spike_tax)
+    res
 }
 
