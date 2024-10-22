@@ -1,0 +1,9 @@
+name: iba-utils
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python
+  - r-data.table
+  - r-optparse
+  - pandas
