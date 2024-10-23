@@ -2,7 +2,7 @@
 library(data.table)
 
 # Read in functions for identifying and removing spikes
-source("spikes_control_fxns.R")
+source("spikes_controls_fxns.R")
 
 
 # Function for getting the IBA data for CO1.
@@ -24,23 +24,24 @@ get_iba_co1_data <- function(data_path,
     
     # Refuse to lump datasets across countries
     if (country!="MG" && country !="SE") {
-        cat ("ERROR: 'country' must be one of 'mg' or 'se'\n")
+        cat ("ERROR: 'country' must be one of 'MG' or 'SE'\n")
         return (NA)
     }
-
-    # Get data files
-    cat("reading data files, this may take a while...\n")
-    counts <- fread(paste0(data_path,"non_numts_clusters_counts.cleaned.tsv"),header=TRUE,sep="\t")
-    taxonomy <- fread(paste0(data_path,"cluster_consensus_taxonomy.tsv"))
 
     # Initialize index into columns we want to keep
     index <- numeric()
 
     if (country=="SE") {
+        
+        # Get data files
+        cat("Reading data files, this may take a while...\n")
+        counts <- fread(paste0(data_path,"cleaned_noise_filtered_cluster_counts_SE.tsv"),header=TRUE,sep="\t")
+        taxonomy <- fread(paste0(data_path,"cleaned_noise_filtered_cluster_taxonomy_SE.tsv"))
+        taxonomy <- taxonomy[taxonomy$representative==1,]
 
         # Get metadata file and remove non-samples and sequencing failures
         meta <- fread(paste0(metadata_path,"CO1_sequencing_metadata_SE.tsv"))
-        meta <- meta[meta$lab_sample_type=="sample" & meta$sequencing_status=="sequencing successful",]
+        meta <- meta[meta$lab_sample_type=="sample" & meta$sequencing_successful==TRUE,]
 
         # Get and possibly adjust malaise trap data. We use the fact here
         # that the spike-ins are the same in both cases.
@@ -77,11 +78,15 @@ get_iba_co1_data <- function(data_path,
     }
     if (country=="MG") {
 
+        # Get data files
+        cat("Reading data files, this may take a while...\n")
+        counts <- fread(paste0(data_path,"cleaned_noise_filtered_cluster_counts_MG.tsv"),header=TRUE,sep="\t")
+        taxonomy <- fread(paste0(data_path,"cleaned_noise_filtered_cluster_taxonomy_MG.tsv"))
+        taxonomy <- taxonomy[taxonomy$representative==1,]
+
         # Get metadata file and remove non-samples and sequencing failures
-        # Note misspelling of sequencing status value in MG metadata file
-        # We are ignoring the single sample with very few reads
         meta <- fread(paste0(metadata_path,"CO1_sequencing_metadata_MG.tsv"))
-        meta <- meta[meta$lab_sample_type=="sample" & meta$sequencing_status=="sequencing successfull",]
+        meta <- meta[meta$lab_sample_type=="sample" & meta$sequencing_successful==TRUE,]
 
         # Adjust lysate data if requested
         if (grepl("lysate", dataset)) {
@@ -109,11 +114,12 @@ get_iba_co1_data <- function(data_path,
     tot <- rowSums(counts[,2:ncol(counts)])
     counts <- counts[tot!=0,]
 
-    # Remove clusters with no data
+    # Remove samples with no data
     tot <- colSums(counts[,2:ncol(counts)])
-    counts <- counts[,c(TRUE,tot!=0)]
+    index <- c(TRUE,tot!=0)
+    counts <- counts[,..index]
 
-    # Add in taxonomy data 
+    # Add in taxonomy data
     dt <- merge(taxonomy, counts, by="cluster")
 
     # Make absolutely sure we remove Zoarces gillii
@@ -130,7 +136,13 @@ handle_spikes <- function(counts, samples, taxonomy, calibrate, remove_spikes) {
     idx <- idx[!is.na(idx)]
 
     # identify spikeins
-    spikein_clusters <- identify_spikes(counts, samples, taxonomy)
+    if (remove_spikes || calibrate) {
+        spikein_clusters <- identify_spikes(counts, samples, taxonomy)
+        if (is.na(spikein_clusters) || nrow(spikein_clusters)==0) {
+            cat("ERROR: Could not find any spikein clusters\n")
+            return (NA)
+        }
+    }
 
     # calibrate
     # Note that there are occasional samples without spike-ins; we simply do
