@@ -19,6 +19,8 @@ parser <- add_option(parser, c("--control_cutoff"), type="numeric", default=0.05
                     help="Threshold for removing control clusters. Clusters occurring in more than control_cutoff of control samples will be removed.")
 parser <- add_option(parser, c("--spikein_cutoff"), type="numeric", default=0.8,
                     help="Threshold for identifying spikein clusters. Clusters occurring in more than spikein_cutoff of spikein samples will be identified as spikeins.")
+parser <- add_option(parser, c("--ignore_spikes"), action="store_true", default=FALSE,
+                    help="Ignore spikein samples")
 parser <- add_option(parser, c("--counts_outfile"), type="character", default="cleaned_filtered_counts.tsv",
                     help="Path to cleaned filtered counts file")
 parser <- add_option(parser, c("--taxonomy_outfile"), type="character", default="cleaned_filtered_cluster_taxonomy.tsv",
@@ -78,8 +80,13 @@ cleaned_filtered_counts <- res$counts
 control_remove_tax <- res$remove_tax
 
 if (length(spikein_samples)>0) {
+    cat("Identifying spikeins\n")
     res <- remove_spikes(cleaned_filtered_counts,spikein_samples, taxonomy, args$spikein_cutoff)
-    cleaned_filtered_counts <- res$counts
+    if (args$ignore_spikes) {
+        cat("Skipping removal of spikeins\n")
+    } else {
+        cleaned_filtered_counts <- res$counts
+    }
     spikein_remove_tax <- res$spike_tax
 }
 
