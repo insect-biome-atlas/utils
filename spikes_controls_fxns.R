@@ -147,14 +147,21 @@ identify_spikes <- function(counts, spikein_samples, taxonomy, cutoff=0.8) {
     # Identify spikeins
     prop_samples <- rowMeans(counts[,2:ncol(counts)]>0)
     spikein_candidates <- counts$cluster[prop_samples>cutoff]
-    spikein_clusters <- spikein_candidates[taxonomy$Class[match(spikein_candidates,taxonomy$cluster)]=="Insecta"]
-    cat("Found", length(spikein_clusters), "spikein clusters:\n")
-    spike_tax <- taxonomy[taxonomy$cluster %in% spikein_clusters,c("cluster","Genus","Species","BOLD_bin")]
+    synthetic_spikeins <- spikein_candidates[is.na(match(spikein_candidates,taxonomy$cluster))]
+    if (length(synthetic_spikeins>0)) {
+        cat("Found", length(synthetic_spikeins), "synthetic spikein clusters: ")
+        cat(synthetic_spikeins,sep=",")
+        cat("\n")
+    }
+    bio_spikein_candidates <- spikein_candidates[!(spikein_candidates %in% synthetic_spikeins)]
+    bio_spikeins <- bio_spikein_candidates[taxonomy$Class[match(bio_spikein_candidates,taxonomy$cluster)]=="Insecta"]
+    cat("Found", length(bio_spikeins), "biological spikein clusters:\n")
+    spike_tax <- taxonomy[taxonomy$cluster %in% bio_spikeins,c("cluster","Genus","Species","BOLD_bin")]
     spike_tax$prop_samples <- rowMeans(counts[match(spike_tax$cluster,counts$cluster),2:ncol(counts)]>0)
     print(spike_tax)
 
     # Return clusters
-    res <- list(spikein_clusters=spikein_clusters, spike_tax=spike_tax)
+    res <- list(spikein_clusters=c(synthetic_spikeins, bio_spikeins), spike_tax=spike_tax)
     res
 }
 

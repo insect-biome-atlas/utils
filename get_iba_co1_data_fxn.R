@@ -137,8 +137,9 @@ handle_spikes <- function(counts, samples, taxonomy, calibrate, remove_spikes) {
 
     # identify spikeins
     if (remove_spikes || calibrate) {
-        spikein_clusters <- identify_spikes(counts, samples, taxonomy)
-        if (is.na(spikein_clusters) || nrow(spikein_clusters)==0) {
+        res <- identify_spikes(counts, samples, taxonomy)
+        spikein_clusters <- res$spikein_clusters
+        if (length(spikein_clusters)==0) {
             cat("ERROR: Could not find any spikein clusters\n")
             return (NA)
         }
@@ -161,6 +162,7 @@ handle_spikes <- function(counts, samples, taxonomy, calibrate, remove_spikes) {
 
     # Remove the spike-ins
     if (calibrate || remove_spikes) {
+        # Add artificial spikein clusters
         counts <- counts[!(counts$cluster %in% spikein_clusters),]
     }
 
