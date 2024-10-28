@@ -38,7 +38,8 @@ mean_max <- function(dt,index) {
 identify_control_clusters <- function(counts, taxonomy, samples, controls, cutoff=0.05) {
 
     # Identify clusters that appear in controls above cutoff
-
+    orig_tax <- taxonomy
+    taxonomy <- taxonomy[taxonomy$representative==1,]
     # Extract sample and control reads
     idx <- which(colnames(counts) %in% samples)
     idx <- c(1,idx) # keep cluster name
@@ -74,7 +75,7 @@ identify_control_clusters <- function(counts, taxonomy, samples, controls, cutof
                                   Genus=taxonomy$Genus[match(remove_clusters,taxonomy$cluster)],
                                   Species=taxonomy$Species[match(remove_clusters,taxonomy$cluster)],
                                   BOLD_bin=taxonomy$BOLD_bin[match(remove_clusters,taxonomy$cluster)]))
-    print(remove_tax)
+    #print(remove_tax)
     cat("Summary of reads in controls of kept clusters:\n")
     cat("prop_samples:\n")
     print(summary(res$keep_prop))
@@ -119,7 +120,10 @@ remove_control_clusters <- function(filtered_counts, all_cluster_counts, taxonom
     remove_clusters <- res$remove_clusters
     remove_tax <- res$remove_tax
 
-    res <- list(counts=filtered_counts[!filtered_counts$cluster %in% remove_clusters,], remove_tax=remove_tax)
+    res <- list(
+        counts=filtered_counts[!filtered_counts$cluster %in% remove_clusters,], 
+        filtered_tax=taxonomy[!taxonomy$cluster %in% remove_clusters,], 
+        remove_tax=remove_tax)
     res
 }
 
