@@ -15,6 +15,8 @@ source("spikes_controls_fxns.R")
 #  -     calibrate: whether to calibrate the read counts using biological spike-in data (only possible for lysates and homogenates)
 #  -                NB! when calibrate is requested, spike-ins will be removed
 #  - remove_spikes: whether to remove reads from biological spike-ins (only relevant for lysates and homogenates)
+#
+# Return value: data.table containing complete cluster taxonomy (based on rep ASVs)  and counts
 get_iba_co1_data <- function(data_path,
                              metadata_path=data_path,
                              country=c("MG","SE"),
@@ -22,6 +24,9 @@ get_iba_co1_data <- function(data_path,
                              calibrate=FALSE,
                              remove_spikes=TRUE) {
     
+    # Convert country to upper case
+    country <- toupper(country)
+
     # Refuse to lump datasets across countries
     if (country!="MG" && country !="SE") {
         cat ("ERROR: 'country' must be one of 'MG' or 'SE'\n")
