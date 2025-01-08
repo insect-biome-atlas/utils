@@ -124,11 +124,23 @@ get_iba_co1_data <- function(data_path,
     index <- c(TRUE,tot!=0)
     counts <- counts[,..index]
 
+    # Make sure artificial spikeins are included (they are not in the taxonomy file by default)
+    if (sum(counts$cluster %in% taxonomy$cluster) < length(counts$cluster)) {
+        art_spikes <- counts$cluster[!(counts$cluster %in% taxonomy$cluster)]
+        if (remove_spikes==TRUE || !grepl("homogenate",dataset)) {
+            cat ("ERROR: Unexpected clusters in counts file:\n")
+            cat (art_spikes,"\n")
+            return (NA)
+        }
+        for (i in 1:length(art_spikes))
+            taxonomy <- rbind(taxonomy,list(cluster=art_spikes[i]),fill=TRUE)
+    }
+
     # Add in taxonomy data
     dt <- merge(taxonomy, counts, by="cluster")
 
-    # Make absolutely sure we remove Zoarces gillii
-    dt[dt$Species!="Zoarces gillii",]
+   # Make absolutely sure we remove Zoarces gillii (Species==NA for artificial spike-ins, if present)
+    dt[is.na(dt$Species) | dt$Species!="Zoarces gillii",]
 }
 
 
@@ -153,21 +165,21 @@ handle_spikes <- function(counts, samples, taxonomy, calibrate, remove_spikes) {
     # calibrate
     # Note that there are occasional samples without spike-ins; we simply do
     # not correct these read counts (what else can we do?). Presumably, spike-ins
-    # were not added to these samples by mistake.
+    # were never added to these samples.
     if (calibrate && length(spikein_clusters) > 0) {
+        cat("calibrating...\n")
         spike_counts <- colSums(counts[counts$cluster %in% spikein_clusters,..idx])
-        correction <- spike_counts / mean(spike_counts[spike_counts!=0])
-        correction[spike_counts==0] <- 1.0
-        for (i in   1:length(idx)) {
-            if (i%%100==0)
-                cat("Processing col ", idx, " (", round(100.0*idx/ncol(counts)), "%)\n",sep="")
-            counts[,idx] <- ceiling(counts[,..idx] / correction[i])
+        correction <- log10(spike_counts) - mean(log10(spike_counts[spike_counts!=0]))
+        correction[spike_counts==0] <- 0.0
+        for (i in idx) {
+            if ((which(idx==i)/length(idx))%%10==0)
+                cat("Processing col ", i, " (", round(100.0*which(idx==i)/length(idx)), "%)\n",sep="")
+            counts[,i] <- ceiling(counts[,..i] / 10^(correction[which(idx==i)]))
         }
     }
 
     # Remove the spike-ins
     if (calibrate || remove_spikes) {
-        # Add artificial spikein clusters
         counts <- counts[!(counts$cluster %in% spikein_clusters),]
     }
 
