@@ -43,11 +43,17 @@ identify_control_clusters <- function(counts, taxonomy, samples, controls, cutof
     # Extract sample and control reads
     idx <- which(colnames(counts) %in% samples)
     idx <- c(1,idx) # keep cluster name
-    sample_counts <- counts[,..idx]
+    if (class(counts)[1]=="data.table")
+        sample_counts <- counts[,..idx]
+     else
+        sample_counts <- counts[,idx]
 
     idx <- which(colnames(counts) %in% controls)
     idx <- c(1,idx) # keep cluster name
-    control_counts <- counts[,..idx]
+    if (class(counts)[1]=="data.table")
+        control_counts <- counts[,..idx]
+     else
+        control_counts <- counts[,idx]
 
     # identify clusters that have at least one read in a control
     include_rows <- rowSums(control_counts[, 2:ncol(control_counts)])>0
