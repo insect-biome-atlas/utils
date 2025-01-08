@@ -161,7 +161,7 @@ identify_spikes <- function(counts, spikein_samples, taxonomy, cutoff=0.8) {
     print(spike_tax)
 
     # Return clusters
-    res <- list(spikein_clusters=c(synthetic_spikeins, bio_spikeins), spike_tax=spike_tax)
+    res <- list(spikein_clusters=c(synthetic_spikeins, bio_spikeins), synthetic_spikeins=synthetic_spikeins, bio_spikeins=bio_spikeins, spike_tax=spike_tax)
     res
 }
 
