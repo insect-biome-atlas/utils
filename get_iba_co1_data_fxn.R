@@ -1,8 +1,9 @@
 # Code relies on data.table
 library(data.table)
 
-# Read in functions for identifying and removing spikes
-source("spikes_controls_fxns.R")
+# NB! This code depends on the code in the
+# "spikes_controls_fxns.R" script in this
+# repository.
 
 
 # Function for getting the IBA data for CO1.
