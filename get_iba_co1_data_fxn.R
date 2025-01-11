@@ -15,14 +15,15 @@ source("spikes_controls_fxns.R")
 #  -     calibrate: whether to calibrate the read counts using biological spike-in data (only possible for lysates and homogenates)
 #  -                NB! when calibrate is requested, spike-ins will be removed
 #  - remove_spikes: whether to remove reads from biological spike-ins (only relevant for lysates and homogenates)
-#
+#  -    data.table: whether to use data.table (TRUE, default) or data.frame for counts data
 # Return value: data.table containing complete cluster taxonomy (based on rep ASVs)  and counts
 get_iba_co1_data <- function(data_path,
                              metadata_path=data_path,
                              country=c("MG","SE"),
                              dataset=c("homogenate|lysate|ethanol|soil|litter"),
                              calibrate=FALSE,
-                             remove_spikes=TRUE) {
+                             remove_spikes=TRUE,
+                             data.table=TRUE) {
     
     # Convert country to upper case
     country <- toupper(country)
@@ -40,12 +41,18 @@ get_iba_co1_data <- function(data_path,
         
         # Get data files
         cat("Reading data files, this may take a while...\n")
-        counts <- fread(paste0(data_path,"cleaned_noise_filtered_cluster_counts_SE.tsv"),header=TRUE,sep="\t")
-        taxonomy <- fread(paste0(data_path,"cleaned_noise_filtered_cluster_taxonomy_SE.tsv"))
+
+        if (data.table)
+            counts <- fread(paste0(data_path,"cleaned_noise_filtered_cluster_counts_SE.tsv"),header=TRUE,sep="\t")
+        else
+            counts <- read.delim(paste0(data_path,"cleaned_noise_filtered_cluster_counts_SE.tsv"))
+        if (colnames(counts)[1]!="cluster")
+            colnames(counts)[1]<-"cluster"
+        taxonomy <- read.delim(paste0(data_path,"cleaned_noise_filtered_cluster_taxonomy_SE.tsv"))
         taxonomy <- taxonomy[taxonomy$representative==1,]
 
         # Get metadata file and remove non-samples and sequencing failures
-        meta <- fread(paste0(metadata_path,"CO1_sequencing_metadata_SE.tsv"))
+        meta <- read.delim(paste0(metadata_path,"CO1_sequencing_metadata_SE.tsv"))
         meta <- meta[meta$lab_sample_type=="sample" & meta$sequencing_successful==TRUE,]
 
         # Get and possibly adjust malaise trap data. We use the fact here
@@ -85,12 +92,17 @@ get_iba_co1_data <- function(data_path,
 
         # Get data files
         cat("Reading data files, this may take a while...\n")
-        counts <- fread(paste0(data_path,"cleaned_noise_filtered_cluster_counts_MG.tsv"),header=TRUE,sep="\t")
-        taxonomy <- fread(paste0(data_path,"cleaned_noise_filtered_cluster_taxonomy_MG.tsv"))
+        if (data.table)
+            counts <- fread(paste0(data_path,"cleaned_noise_filtered_cluster_counts_MG.tsv"),header=TRUE,sep="\t")
+        else
+            counts <- read.delim(paste0(data_path,"cleaned_noise_filtered_cluster_counts_MG.tsv"))
+        if (colnames(counts)[1]!="cluster")
+            colnames(counts)[1]<-"cluster"
+        taxonomy <- read.delim(paste0(data_path,"cleaned_noise_filtered_cluster_taxonomy_MG.tsv"))
         taxonomy <- taxonomy[taxonomy$representative==1,]
 
         # Get metadata file and remove non-samples and sequencing failures
-        meta <- fread(paste0(metadata_path,"CO1_sequencing_metadata_MG.tsv"))
+        meta <- read.delim(paste0(metadata_path,"CO1_sequencing_metadata_MG.tsv"))
         meta <- meta[meta$lab_sample_type=="sample" & meta$sequencing_successful==TRUE,]
 
         # Adjust lysate data if requested
@@ -113,7 +125,10 @@ get_iba_co1_data <- function(data_path,
     # samples that have no counts data despite the metadata claiming the contrary
     index <- c(1, index)
     index <- index[!is.na(index)]
-    counts <- counts[,..index]
+    if (data.table)
+        counts <- counts[,..index]
+    else
+        counts <- counts[,index]
 
     # Remove clusters that are not encountered in this dataset
     tot <- rowSums(counts[,2:ncol(counts)])
@@ -122,7 +137,10 @@ get_iba_co1_data <- function(data_path,
     # Remove samples with no data
     tot <- colSums(counts[,2:ncol(counts)])
     index <- c(TRUE,tot!=0)
-    counts <- counts[,..index]
+    if (data.table)
+        counts <- counts[,..index]
+    else
+        counts <- counts[,index]
 
     # Make sure artificial spikeins are included (they are not in the taxonomy file by default)
     if (sum(counts$cluster %in% taxonomy$cluster) < length(counts$cluster)) {
@@ -132,15 +150,20 @@ get_iba_co1_data <- function(data_path,
             cat (art_spikes,"\n")
             return (NA)
         }
-        for (i in 1:length(art_spikes))
-            taxonomy <- rbind(taxonomy,list(cluster=art_spikes[i]),fill=TRUE)
+        for (i in 1:length(art_spikes)) {
+            taxonomy <- rbind(taxonomy, rep("",times=ncol(taxonomy)))
+            taxonomy[nrow(taxonomy),"cluster"] <- art_spikes[i]
+        }
     }
 
     # Add in taxonomy data
-    dt <- merge(taxonomy, counts, by="cluster")
+    if (data.table)
+        ret <- merge(data.table(taxonomy), counts, by="cluster")
+    else
+        ret <- merge(taxonomy, counts, by="cluster")
 
-   # Make absolutely sure we remove Zoarces gillii (Species==NA for artificial spike-ins, if present)
-    dt[is.na(dt$Species) | dt$Species!="Zoarces gillii",]
+    # Make absolutely sure we remove Zoarces gillii (Species==NA for artificial spike-ins, if present)
+    ret[is.na(ret$Species) | ret$Species!="Zoarces gillii",]
 }
 
 
@@ -166,15 +189,24 @@ handle_spikes <- function(counts, samples, taxonomy, calibrate, remove_spikes) {
     # Note that there are occasional samples without spike-ins; we simply do
     # not correct these read counts (what else can we do?). Presumably, spike-ins
     # were never added to these samples.
+    # We only calibrate based on biological spike-ins, and based on the mean of the
+    # log of the sum of spike-in counts 
     if (calibrate && length(spikein_clusters) > 0) {
         cat("calibrating...\n")
-        spike_counts <- colSums(counts[counts$cluster %in% spikein_clusters,..idx])
+        if (class(counts)[1]=="data.table")
+            spike_counts <- colSums(counts[counts$cluster %in% res$bio_spikeins,..idx])
+        else
+            spike_counts <- colSums(counts[counts$cluster %in% res$bio_spikeins,idx])
         correction <- log10(spike_counts) - mean(log10(spike_counts[spike_counts!=0]))
         correction[spike_counts==0] <- 0.0
-        for (i in idx) {
-            if ((which(idx==i)/length(idx))%%10==0)
-                cat("Processing col ", i, " (", round(100.0*which(idx==i)/length(idx)), "%)\n",sep="")
-            counts[,i] <- ceiling(counts[,..i] / 10^(correction[which(idx==i)]))
+        for (i in 1:length(idx)) {
+            j <- idx[i]
+            if (i%%10==0)
+                cat("Processing col ", j, " (", round(100.0*i/length(idx)), "%)\n",sep="")
+            if (class(counts)[1]=="data.table")
+                counts[,j] <- ceiling(counts[,..j] / 10^(correction[i]))
+            else
+                counts[,j] <- ceiling(counts[,j] / 10^(correction[i]))
         }
     }
 
