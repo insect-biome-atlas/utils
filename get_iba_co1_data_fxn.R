@@ -186,13 +186,13 @@ handle_spikes <- function(counts, samples, taxonomy, calibrate, remove_spikes) {
         }
     }
 
-    # calibrate
+    # Calibrate
     # Note that there are occasional samples without spike-ins; we simply do
     # not correct these read counts (what else can we do?). Presumably, spike-ins
     # were never added to these samples.
     # We only calibrate based on biological spike-ins, and based on the mean of the
     # log of the sum of spike-in counts 
-    if (calibrate && length(spikein_clusters) > 0) {
+    if (calibrate && (length(spikein_clusters) > 0)) {
         cat("calibrating...\n")
         if (class(counts)[1]=="data.table")
             spike_counts <- colSums(counts[counts$cluster %in% res$bio_spikeins,..idx])
@@ -200,15 +200,16 @@ handle_spikes <- function(counts, samples, taxonomy, calibrate, remove_spikes) {
             spike_counts <- colSums(counts[counts$cluster %in% res$bio_spikeins,idx])
         correction <- log10(spike_counts) - mean(log10(spike_counts[spike_counts!=0]))
         correction[spike_counts==0] <- 0.0
+        pb <- txtProgressBar(min = 0, max = length(idx), style = 3, width = 50)
         for (i in 1:length(idx)) {
             j <- idx[i]
-            if (i%%10==0)
-                cat("Processing col ", j, " (", round(100.0*i/length(idx)), "%)\n",sep="")
             if (class(counts)[1]=="data.table")
                 counts[,j] <- ceiling(counts[,..j] / 10^(correction[i]))
             else
                 counts[,j] <- ceiling(counts[,j] / 10^(correction[i]))
+            setTxtProgressBar(pb, i)
         }
+        cat("\n")
     }
 
     # Remove the spike-ins
