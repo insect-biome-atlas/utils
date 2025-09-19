@@ -120,12 +120,16 @@ identify_control_clusters <- function(counts, taxonomy, samples, controls, cutof
 #   samples:            names of samples
 #   controls:           names of controls
 #   cutoff:             threshold for removing control clusters
-remove_control_clusters <- function(filtered_counts, all_cluster_counts, taxonomy, samples, controls, cutoff=0.05) {
+remove_control_clusters <- function(filtered_counts, all_cluster_counts, taxonomy, samples, controls, spikeins, ignore_spikes, cutoff=0.05) {
 
     res <- identify_control_clusters(all_cluster_counts, taxonomy, samples, controls, cutoff)
+    if (ignore_spikes) {
+        cat("Ignoring potential spikein clusters\n")
+        res$remove_clusters <- res$remove_clusters[!res$remove_clusters%in%spikeins]
+        res$remove_tax <- res$remove_tax[!res$remove_tax$cluster%in%spikeins,]
+    }
     remove_clusters <- res$remove_clusters
     remove_tax <- res$remove_tax
-
     res <- list(
         counts=filtered_counts[!filtered_counts$cluster %in% remove_clusters,], 
         filtered_tax=taxonomy[!taxonomy$cluster %in% remove_clusters,], 
@@ -135,7 +139,7 @@ remove_control_clusters <- function(filtered_counts, all_cluster_counts, taxonom
 
 
 # Function for identifying spikeins
-identify_spikes <- function(counts, spikein_samples, taxonomy, cutoff=0.8) {
+identify_spikes <- function(counts, spikein_samples, taxonomy, cutoff=0.75) {
 
     # Get a rep asv taxonomy in case a complete cluster taxonomy is provided
     if ("representative" %in% colnames(taxonomy))

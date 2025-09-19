@@ -83,26 +83,31 @@ cat(paste0("Reading in taxonomy from ", args$taxonomy, "\n"))
 taxonomy <- read.delim(args$taxonomy)
 #taxonomy <- taxonomy[taxonomy$representative==1,]
 
-if (!args$skip_control_cleaning) {
-    cat("Identifying control clusters\n")
-    res <- remove_control_clusters(filtered_counts, raw_counts,taxonomy, samples,controls, args$control_cutoff)
-    cleaned_filtered_counts <- res$counts
-    control_remove_tax <- res$remove_tax
-} else {
-    cat("Skipping identification of control clusters\n")
-    cleaned_filtered_counts <- filtered_counts
-    control_remove_tax <- NULL
-}
-
 if (length(spikein_samples)>0) {
     cat("Identifying spikeins\n")
-    res <- remove_spikes(cleaned_filtered_counts,spikein_samples, taxonomy, args$spikein_cutoff)
+    res <- remove_spikes(filtered_counts,spikein_samples, taxonomy, args$spikein_cutoff)
     if (args$ignore_spikes) {
         cat("Skipping removal of spikeins\n")
+        cleaned_filtered_counts <- filtered_counts
     } else {
         cleaned_filtered_counts <- res$counts
     }
     spikein_remove_tax <- res$spike_tax
+} else {
+    cat("No spikein-samples found\n")
+    cleaned_filtered_counts <- filtered_counts
+    spikein_remove_tax <- list()
+    spikein_remove_tax$cluster <- c()
+}
+
+if (!args$skip_control_cleaning) {
+    cat("Identifying control clusters\n")
+    res <- remove_control_clusters(cleaned_filtered_counts, raw_counts,taxonomy, samples,controls, spikein_remove_tax$cluster, args$ignore_spikes, args$control_cutoff)
+    cleaned_filtered_counts <- res$counts
+    control_remove_tax <- res$remove_tax
+} else {
+    cat("Skipping identification of control clusters\n")
+    control_remove_tax <- NULL
 }
 
 cleaned_filtered_taxonomy <- taxonomy[taxonomy$cluster %in% cleaned_filtered_counts$cluster,]
