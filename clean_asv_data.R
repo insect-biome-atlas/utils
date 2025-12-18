@@ -1,3 +1,5 @@
+#!/usr/bin/env -S Rscript --vanilla
+
 library("optparse")
 
 parser <- OptionParser()
@@ -9,6 +11,8 @@ parser <- add_option(parser, c("-t", "--taxonomy"), type="character",
                     help="Path to cluster taxonomy file")
 parser <- add_option(parser, c("-m", "--metadata"), type="character",
                     help="Path to metadata file")
+parser <- add_option(parser, c("-d", "--dataset"), type="character", default=NULL,
+                    help="Only process samples belonging to this dataset in the metadata file (requires a 'dataset' column in the metadata).")
 parser <- add_option(parser, c("--sample_type_column"), type="character", default="lab_sample_type",
                     help="Column in metadata file that contains sample type information (default: lab_sample_type)")
 parser <- add_option(parser, c("--sample_types"), type="character", default="sample",
