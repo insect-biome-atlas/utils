@@ -7,20 +7,30 @@ R scripts useful for working with the IBA data.
 
 
 1. Clone the repository
+
 ```bash
 git clone git@github.com:insect-biome-atlas/utils.git
 cd utils
 ```
 
-2. Install the required packages
+2. Install [pixi](https://pixi.sh)
+
 ```bash
-conda env create
+curl -fsSL https://pixi.sh/install.sh | sh
 ```
 
-3. Activate the conda environment
+3. Start a pixi shell
+
 ```bash
-conda activate iba-utils
+pixi shell
 ```
+
+4. Test that you can run the `clean_asv_data.R` script:
+
+```bash
+clean_asv_data.R -h
+```
+
 
 ## Usage
 
@@ -94,6 +104,15 @@ Example:
 | sample3| pcr_neg         | 0              |
 | sample4| sample          | 1              |
 
+- `-d`, `--dataset`: Only process samples for a specific dataset in the metadata.
+
+The `dataset` argument allows you to process a subset of samples. This requires that the metadata file contains a `dataset` column and that you have defined datasets for the different samples, _e.g._:
+
+| sample | lab_sample_type | spikein_sample | dataset  |
+| sample1| sample          | 0              | dataset1 |
+| sample2| buffer_blank    | 0              | dataset1 |
+| sample3| pcr_neg         | 0              | dataset2 |
+| sample4| sample          | 1              | dataset2 |
 
 - `--sample_type_column`: Column in metadata file that contains sample type (default: `lab_sample_type`)
 
