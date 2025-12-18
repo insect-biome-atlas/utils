@@ -33,13 +33,12 @@ parser <- add_option(parser, c("--control_outfile"), type="character", default=N
                     help="Path to removed control clusters file. If specified, control clusters will be written to this file.")
 parser <- add_option(parser, c("--spikein_outfile"), type="character", default=NULL,
                     help="Path to removed spikein clusters file. If specified, spikein clusters will be written to this file.")
-parser <- add_option(parser, c("-r", "--remove_taxa"), type="character",
-                    help="Commad-separated list of rank:taxa combinations to remove")
+parser <- add_option(parser, c("-r", "--remove_taxa"), type="character", default=NULL,
+                    help="Comma-separated list of rank:taxa combinations to remove")
 
 args <- parse_args(parser)
 args$sample_types <- unlist(strsplit(args$sample_types,","))
 args$control_types <- unlist(strsplit(args$control_types,","))
-args$remove_taxa <- unlist(strsplit(args$remove_taxa,","))
 if (any(is.null(args$counts), is.null(args$filtered_counts), is.null(args$taxonomy), is.null(args$metadata))) {
     stop("Please provide paths to counts (-c), filtered counts (-f), taxonomy (-t), and metadata (-m) files. See --help for more information.")    
 }
@@ -113,6 +112,7 @@ if (!args$skip_control_cleaning) {
 cleaned_filtered_taxonomy <- taxonomy[taxonomy$cluster %in% cleaned_filtered_counts$cluster,]
 
 if (!is.null(args$remove_taxa)) {
+    args$remove_taxa <- unlist(strsplit(args$remove_taxa,","))
     n <- nrow(cleaned_filtered_taxonomy)
     for (pair in args$remove_taxa) {
         cat(paste0("Removing ", pair, "\n"))
