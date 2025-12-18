@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Pixi project for IBA utility scripts"
 authors = ["johnne <john.sundh@scilifelab.se>"]
 channels = ["conda-forge", "bioconda", "main", "r"]
-platforms = ["linux-64"]
+platforms = ["linux-64", "osx-arm64", "osx-64"]
 
 [system-requirements]
 linux="3.10.0"
