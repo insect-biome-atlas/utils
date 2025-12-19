@@ -13,7 +13,7 @@ git clone git@github.com:insect-biome-atlas/utils.git
 cd utils
 ```
 
-2. Install [pixi](https://pixi.sh)
+2. If you don't have [pixi](https://pixi.sh) installed, install it with:
 
 ```bash
 curl -fsSL https://pixi.sh/install.sh | sh
@@ -165,7 +165,7 @@ the first column and with additional columns containing read statistics and taxo
 Example of usage:
     
 ```bash
-Rscript clean_asv_data.R -c cluster_counts.tsv \
+clean_asv_data.R -c cluster_counts.tsv \
     -f noise_filtered_cluster_counts.tsv \
     -t cluster_taxonomy.tsv \
     -m metadata.tsv \
