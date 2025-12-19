@@ -41,6 +41,8 @@ parser <- add_option(parser, c("-r", "--remove_taxa"), type="character", default
                     help="Comma-separated list of rank:taxa combinations to remove")
 
 args <- parse_args(parser)
+usage <- (parser@usage)
+script.dir <- dirname(strsplit(usage, " ")[[1]][2])
 args$sample_types <- unlist(strsplit(args$sample_types,","))
 args$control_types <- unlist(strsplit(args$control_types,","))
 if (any(is.null(args$counts), is.null(args$filtered_counts), is.null(args$taxonomy), is.null(args$metadata))) {
@@ -48,10 +50,17 @@ if (any(is.null(args$counts), is.null(args$filtered_counts), is.null(args$taxono
 }
 
 library(data.table)
-source("spikes_controls_fxns.R")
+source(paste(script.dir, "spikes_controls_fxns.R", sep="/"))
 
 cat(paste0("Reading in metadata from ", args$metadata, "\n"))
-meta <- read.delim(args$metadata, row.names=1)
+if (is.null(args$dataset)) {
+    meta <- read.delim(args$metadata, row.names=1)
+} else {
+    cat(paste0("Processing samples for dataset ", args$dataset, "\n"))
+    meta <- read.delim(args$metadata)
+    meta <- data.frame(data.table(meta)[dataset==args$dataset])
+    rownames(meta) <- meta[, 1]
+}
 
 # Get samples and controls
 if (args$sample_type_column %in% colnames(meta)) {
