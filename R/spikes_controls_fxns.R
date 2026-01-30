@@ -8,9 +8,9 @@ mean_max <- function(dt,index) {
     is_missing <- rowSums(dt[,2:ncol(dt)])==0
 
     remove_stats <- index & !is_missing
-    remove_mean <- rowSums(dt[remove_stats,2:ncol(dt)]) / rowSums(dt[remove_stats,2:ncol(dt)]>0)
-    remove_max <- apply(as.matrix(dt[remove_stats,2:ncol(dt)]),1,max)
-    remove_prop <- rowMeans(dt[remove_stats,2:ncol(dt)]>0)
+    remove_mean <- rowSums(dt[index,2:ncol(dt)]) / rowSums(dt[index,2:ncol(dt)]>0)
+    remove_max <- apply(as.matrix(dt[index,2:ncol(dt)]),1,max)
+    remove_prop <- rowMeans(dt[index,2:ncol(dt)]>0)
 
     is_missing_keep <- rowSums(dt[!index,2:ncol(dt)])==0
     keep_stats <- !index & !is_missing
@@ -89,7 +89,7 @@ identify_control_clusters <- function(counts, taxonomy, samples, controls, cutof
     print(summary(res$keep_mean))
     cat("max:\n")
     print(summary(res$keep_max))
-
+    # prop_samples is the proportion of samples in which each cluster occurs
     prop_samples <- rowMeans(sample_counts[,2:ncol(sample_counts)]>0)
     res <- mean_max(sample_counts, prop_controls>cutoff)
     cat("Reads in samples of removed clusters:\n")

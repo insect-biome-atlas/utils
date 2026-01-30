@@ -1,3 +1,5 @@
+#!/usr/bin/env -S Rscript --vanilla
+
 library("optparse")
 
 parser <- OptionParser()
@@ -9,6 +11,8 @@ parser <- add_option(parser, c("-t", "--taxonomy"), type="character",
                     help="Path to cluster taxonomy file")
 parser <- add_option(parser, c("-m", "--metadata"), type="character",
                     help="Path to metadata file")
+parser <- add_option(parser, c("-d", "--dataset"), type="character", default=NULL,
+                    help="Only process samples belonging to this dataset in the metadata file (requires a 'dataset' column in the metadata).")
 parser <- add_option(parser, c("--sample_type_column"), type="character", default="lab_sample_type",
                     help="Column in metadata file that contains sample type information (default: lab_sample_type)")
 parser <- add_option(parser, c("--sample_types"), type="character", default="sample",
@@ -33,22 +37,30 @@ parser <- add_option(parser, c("--control_outfile"), type="character", default=N
                     help="Path to removed control clusters file. If specified, control clusters will be written to this file.")
 parser <- add_option(parser, c("--spikein_outfile"), type="character", default=NULL,
                     help="Path to removed spikein clusters file. If specified, spikein clusters will be written to this file.")
-parser <- add_option(parser, c("-r", "--remove_taxa"), type="character",
-                    help="Commad-separated list of rank:taxa combinations to remove")
+parser <- add_option(parser, c("-r", "--remove_taxa"), type="character", default=NULL,
+                    help="Comma-separated list of rank:taxa combinations to remove")
 
 args <- parse_args(parser)
+usage <- (parser@usage)
+script.dir <- dirname(strsplit(usage, " ")[[1]][2])
 args$sample_types <- unlist(strsplit(args$sample_types,","))
 args$control_types <- unlist(strsplit(args$control_types,","))
-args$remove_taxa <- unlist(strsplit(args$remove_taxa,","))
 if (any(is.null(args$counts), is.null(args$filtered_counts), is.null(args$taxonomy), is.null(args$metadata))) {
     stop("Please provide paths to counts (-c), filtered counts (-f), taxonomy (-t), and metadata (-m) files. See --help for more information.")    
 }
 
 library(data.table)
-source("spikes_controls_fxns.R")
+source(paste(script.dir, "spikes_controls_fxns.R", sep="/"))
 
 cat(paste0("Reading in metadata from ", args$metadata, "\n"))
-meta <- read.delim(args$metadata, row.names=1)
+if (is.null(args$dataset)) {
+    meta <- read.delim(args$metadata, row.names=1)
+} else {
+    cat(paste0("Processing samples for dataset ", args$dataset, "\n"))
+    meta <- read.delim(args$metadata)
+    meta <- data.frame(data.table(meta)[dataset==args$dataset])
+    rownames(meta) <- meta[, 1]
+}
 
 # Get samples and controls
 if (args$sample_type_column %in% colnames(meta)) {
@@ -113,6 +125,7 @@ if (!args$skip_control_cleaning) {
 cleaned_filtered_taxonomy <- taxonomy[taxonomy$cluster %in% cleaned_filtered_counts$cluster,]
 
 if (!is.null(args$remove_taxa)) {
+    args$remove_taxa <- unlist(strsplit(args$remove_taxa,","))
     n <- nrow(cleaned_filtered_taxonomy)
     for (pair in args$remove_taxa) {
         cat(paste0("Removing ", pair, "\n"))
